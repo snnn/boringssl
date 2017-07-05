@@ -40,8 +40,21 @@ config_setting(
     values = {"cpu": "darwin"},
 )
 
-boringssl_copts = [
-    # Assembler option --noexecstack adds .note.GNU-stack to each object to
+config_setting(
+    name = "windows",
+    values = {"cpu": "x64_windows"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "windows_msvc",
+    values = {"cpu": "x64_windows_msvc"},
+    visibility = ["//visibility:public"],
+)
+
+boringssl_copts =  select({
+    ":windows": ["-DWIN32_LEAN_AND_MEAN","-DOPENSSL_NO_ASM"],
+    ":linux_x86_64": [  # Assembler option --noexecstack adds .note.GNU-stack to each object to
     # ensure that binaries can be built with non-executable stack.
     "-Wa,--noexecstack",
 
@@ -62,8 +75,7 @@ boringssl_copts = [
     # operations for reference counting rather than locks. However, it's
     # known not to work on some Android builds.
     # "-DOPENSSL_C11_ATOMIC",
-] + select({
-    ":linux_x86_64": [],
+	],
     ":mac_x86_64": [],
     "//conditions:default": ["-DOPENSSL_NO_ASM"],
 })
@@ -75,18 +87,22 @@ crypto_sources_asm = select({
 })
 
 # For C targets only (not C++), compile with C11 support.
-boringssl_copts_c11 = boringssl_copts + [
+boringssl_copts_c11 = boringssl_copts +  select({
+    ":linux_x86_64":[
     "-std=c11",
     "-Wmissing-prototypes",
     "-Wold-style-definition",
-    "-Wstrict-prototypes",
-]
+    "-Wstrict-prototypes"],
+	"//conditions:default": []
+	})
+
 
 # For C targets only (not C++), compile with C11 support.
-boringssl_copts_cxx = boringssl_copts + [
+boringssl_copts_cxx = boringssl_copts + select({
+    ":linux_x86_64":[
     "-std=c++11",
-    "-Wmissing-declarations",
-]
+    "-Wmissing-declarations"],
+	"//conditions:default": []})
 
 cc_library(
     name = "crypto",
